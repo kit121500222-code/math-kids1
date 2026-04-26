@@ -3,43 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>數學大師進階版</title>
+    <title>數學應用題大挑戰</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
         :root {
-            --primary: #5856D6;
-            --secondary: #FF9500;
+            --primary: #007AFF;
+            --secondary: #5856D6;
             --success: #34C759;
+            --warning: #FF9500;
             --bg: #F2F2F7;
         }
 
         body {
-            font-family: -apple-system, system-ui, sans-serif;
+            font-family: -apple-system, "PingFang TC", sans-serif;
             background-color: var(--bg);
             margin: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
-            user-select: none;
+            color: #1C1C1E;
         }
 
-        /* 頂部資訊欄 */
-        .header {
-            padding: 15px;
+        /* 狀態列 */
+        .status-bar {
             background: white;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            font-weight: 600;
+            box-shadow: 0 1px 10px rgba(0,0,0,0.05);
         }
 
-        #timer { font-family: monospace; font-size: 1.2rem; color: var(--primary); }
+        .progress-bar { width: 100%; height: 8px; background: #E5E5EA; }
+        #progress-fill { height: 100%; background: var(--success); width: 0%; transition: 0.4s; }
 
-        /* 進度條 */
-        .progress-container { width: 100%; height: 6px; background: #E5E5EA; }
-        #progress-fill { height: 100%; background: var(--success); width: 0%; transition: 0.3s; }
-
-        .main-content {
+        .game-container {
             flex: 1;
             padding: 20px;
             display: flex;
@@ -48,198 +47,206 @@
             justify-content: center;
         }
 
-        .card {
+        .question-card {
             background: white;
             width: 100%;
-            max-width: 350px;
-            border-radius: 25px;
-            padding: 30px 20px;
+            max-width: 400px;
+            border-radius: 30px;
+            padding: 30px;
+            box-sizing: border-box;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-            position: relative;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
         }
 
-        #q-text { font-size: 1.5rem; line-height: 1.5; margin-bottom: 20px; min-height: 80px; }
-
-        /* 答案槽位 */
-        .answer-box {
-            font-size: 3rem;
-            color: var(--primary);
-            border-bottom: 4px dashed #CCC;
+        #q-category {
             display: inline-block;
-            min-width: 80px;
-            height: 60px;
-            margin-bottom: 20px;
+            padding: 4px 12px;
+            background: #E8F2FF;
+            color: var(--primary);
+            border-radius: 10px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
         }
 
-        /* 數字鍵盤優化 */
-        .keypad {
+        #q-text {
+            font-size: 1.4rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .answer-area {
+            font-size: 3.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 4px solid var(--primary);
+            min-width: 120px;
+            height: 70px;
+            margin: 10px 0;
+        }
+
+        /* 鍵盤樣式 */
+        .numpad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            gap: 15px;
             width: 100%;
-            max-width: 350px;
-            padding: 20px;
+            max-width: 400px;
         }
 
-        .key {
+        .btn {
             background: white;
             border: none;
-            border-radius: 15px;
-            padding: 18px;
-            font-size: 1.4rem;
+            border-radius: 18px;
+            padding: 20px;
+            font-size: 1.6rem;
             font-weight: 600;
-            box-shadow: 0 4px 0 #DDD;
-            transition: 0.1s;
+            box-shadow: 0 5px 0 #D1D1D6;
+            active: transform: translateY(4px);
+            active: box-shadow: none;
         }
 
-        .key:active { transform: translateY(4px); box-shadow: none; background: #F2F2F7; }
-
-        .key.del { color: #FF3B30; }
-        .key.go { background: var(--primary); color: white; box-shadow: 0 4px 0 #3E3B9E; }
+        .btn.clear { color: #FF3B30; }
+        .btn.confirm { background: var(--primary); color: white; box-shadow: 0 5px 0 #0056B3; }
 
         /* 結果頁面 */
-        #result-screen {
+        #results {
             display: none;
-            padding: 20px;
-            text-align: center;
+            padding: 30px 20px;
             overflow-y: auto;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-<div id="game-screen">
-    <div class="header">
-        <div id="q-count">第 1 / 50 題</div>
-        <div id="timer">00:00</div>
+<div id="quiz-ui">
+    <div class="status-bar">
+        <span id="step-info">第 1 / 50 題</span>
+        <span id="timer">00:00</span>
     </div>
-    <div class="progress-container"><div id="progress-fill"></div></div>
+    <div class="progress-bar"><div id="progress-fill"></div></div>
 
-    <div class="main-content">
-        <div class="card">
-            <div id="q-text">準備好了嗎？</div>
-            <div class="answer-box" id="display"></div>
+    <div class="game-container">
+        <div class="question-card">
+            <div id="q-category">應用理解題</div>
+            <div id="q-text">載入中...</div>
+            <div class="answer-area" id="user-input"></div>
         </div>
 
-        <div class="keypad">
-            <button class="key" onclick="press(1)">1</button>
-            <button class="key" onclick="press(2)">2</button>
-            <button class="key" onclick="press(3)">3</button>
-            <button class="key" onclick="press(4)">4</button>
-            <button class="key" onclick="press(5)">5</button>
-            <button class="key" onclick="press(6)">6</button>
-            <button class="key" onclick="press(7)">7</button>
-            <button class="key" onclick="press(8)">8</button>
-            <button class="key" onclick="press(9)">9</button>
-            <button class="key del" onclick="press('C')">C</button>
-            <button class="key" onclick="press(0)">0</button>
-            <button class="key go" onclick="check()">OK</button>
+        <div class="numpad">
+            <button class="btn" onclick="typeIn(1)">1</button>
+            <button class="btn" onclick="typeIn(2)">2</button>
+            <button class="btn" onclick="typeIn(3)">3</button>
+            <button class="btn" onclick="typeIn(4)">4</button>
+            <button class="btn" onclick="typeIn(5)">5</button>
+            <button class="btn" onclick="typeIn(6)">6</button>
+            <button class="btn" onclick="typeIn(7)">7</button>
+            <button class="btn" onclick="typeIn(8)">8</button>
+            <button class="btn" onclick="typeIn(9)">9</button>
+            <button class="btn clear" onclick="typeIn('C')">C</button>
+            <button class="btn" onclick="typeIn(0)">0</button>
+            <button class="btn confirm" onclick="submit()">確定</button>
         </div>
     </div>
 </div>
 
-<div id="result-screen">
-    <h1 id="final-title">🎉 完成挑戰！</h1>
-    <p id="final-time"></p>
-    <div id="history-list" style="text-align: left; background: white; border-radius: 15px; padding: 15px; margin-top: 20px;"></div>
-    <button onclick="location.reload()" style="margin-top: 30px; padding: 15px 40px; border-radius: 30px; border: none; background: var(--success); color: white; font-size: 1.2rem;">再玩一次</button>
+<div id="results">
+    <h1>🏆 挑戰完成！</h1>
+    <p id="stats-time" style="font-size: 1.2rem;"></p>
+    <div id="error-log" style="text-align: left; margin: 20px 0; background: white; border-radius: 20px; padding: 20px;"></div>
+    <button onclick="location.reload()" style="padding: 15px 40px; border-radius: 30px; border: none; background: var(--success); color: white; font-size: 1.2rem;">重新開始</button>
 </div>
 
 <script>
-    let score = 0;
-    let currentIdx = 1;
-    const total = 50;
-    let answer = 0;
-    let input = "";
+    let currentStep = 1;
+    const totalSteps = 50;
+    let ans = 0;
+    let currentInput = "";
     let startTime = Date.now();
-    let history = [];
+    let logs = [];
 
-    // 自動生成多樣化題型
-    function generate() {
-        const type = Math.random();
-        let n1, n2, txt;
+    // 應用題庫情境
+    const pool = [
+        { t: "小明有 {a} 本書，爸爸又買了 {b} 本送給他，小明現在有幾本書？", op: "+" },
+        { t: "公園裡有 {a} 隻貓，跑走了 {b} 隻，還剩下幾隻貓？", op: "-" },
+        { t: "一盒雞蛋有 {a} 個，媽媽煮早餐用了 {b} 個，還剩幾個？", op: "-" },
+        { t: "小紅排隊排在第 {a} 個，她後面還有 {b} 個人，這排一共有幾個人？", op: "+" },
+        { t: "果園今天採收了 {a} 箱蘋果和 {b} 箱橘子，一共採收了幾箱水果？", op: "+" },
+        { t: "原本有 {a} 人在游泳，上岸了 {b} 人，池子裡還有幾人？", op: "-" },
+        { t: "小華買零食花了 {b} 元，他原本有 {a} 元，現在還剩多少錢？", op: "-" }
+    ];
 
-        if (type < 0.4) { // 普通加法
-            n1 = Math.floor(Math.random() * 20) + 10;
-            n2 = Math.floor(Math.random() * 20) + 5;
-            answer = n1 + n2;
-            txt = `${n1} + ${n2} = ?`;
-        } else if (type < 0.7) { // 普通減法
-            n1 = Math.floor(Math.random() * 30) + 20;
-            n2 = Math.floor(Math.random() * 15) + 1;
-            answer = n1 - n2;
-            txt = `${n1} - ${n2} = ?`;
-        } else { // 填空題 (進階)
-            answer = Math.floor(Math.random() * 10) + 2;
-            n1 = Math.floor(Math.random() * 10) + 5;
-            let sum = n1 + answer;
-            txt = `${n1} + ( ) = ${sum}`;
+    function nextQuestion() {
+        if (currentStep > totalSteps) {
+            showEnd();
+            return;
         }
 
-        document.getElementById('q-text').innerHTML = `<h3>第 ${currentIdx} 題</h3>${txt}`;
-        document.getElementById('q-count').innerText = `第 ${currentIdx} / ${total} 題`;
-        document.getElementById('progress-fill').style.width = `${(currentIdx/total)*100}%`;
-        input = "";
-        updateDisplay();
-    }
+        const template = pool[Math.floor(Math.random() * pool.length)];
+        let a = Math.floor(Math.random() * 30) + 15; // 15-45
+        let b = Math.floor(Math.random() * 12) + 2;  // 2-14
 
-    function press(val) {
-        if (val === 'C') input = "";
-        else if (input.length < 3) input += val;
-        updateDisplay();
-    }
-
-    function updateDisplay() {
-        document.getElementById('display').innerText = input;
-    }
-
-    function check() {
-        const userAns = parseInt(input);
-        const qText = document.getElementById('q-text').innerText.split('\n')[1];
-
-        if (userAns === answer) {
-            confetti({ particleCount: 100, spread: 50, origin: { y: 0.8 } });
-            history.push({ q: qText, a: answer, u: userAns, correct: true });
-
-            if (currentIdx < total) {
-                currentIdx++;
-                setTimeout(generate, 800);
-            } else {
-                showResult();
-            }
+        if (template.op === "-") {
+            ans = a - b;
         } else {
-            history.push({ q: qText, a: answer, u: userAns, correct: false });
-            alert("哎呀！算錯囉，再想一下！");
-            input = "";
-            updateDisplay();
+            ans = a + b;
+        }
+
+        document.getElementById('q-text').innerText = template.t.replace("{a}", a).replace("{b}", b);
+        document.getElementById('step-info').innerText = `第 ${currentStep} / ${totalSteps} 題`;
+        document.getElementById('progress-fill').style.width = `${(currentStep/totalSteps)*100}%`;
+        currentInput = "";
+        document.getElementById('user-input').innerText = "";
+    }
+
+    function typeIn(val) {
+        if (val === 'C') currentInput = "";
+        else if (currentInput.length < 3) currentInput += val;
+        document.getElementById('user-input').innerText = currentInput;
+    }
+
+    function submit() {
+        if (currentInput === "") return;
+        const userVal = parseInt(currentInput);
+        const qContent = document.getElementById('q-text').innerText;
+
+        if (userVal === ans) {
+            confetti({ particleCount: 120, spread: 60, origin: { y: 0.7 } });
+            logs.push({ q: qContent, res: "✅", info: "" });
+            currentStep++;
+            setTimeout(nextQuestion, 1000);
+        } else {
+            logs.push({ q: qContent, res: "❌", info: `(正確答案: ${ans})` });
+            alert("答錯囉，再算一次看看！");
+            currentInput = "";
+            document.getElementById('user-input').innerText = "";
         }
     }
 
-    function showResult() {
-        const timeUsed = Math.floor((Date.now() - startTime) / 1000);
-        document.getElementById('game-screen').style.display = 'none';
-        document.getElementById('result-screen').style.display = 'block';
-        document.getElementById('final-time').innerText = `總共用時：${Math.floor(timeUsed/60)}分${timeUsed%60}秒`;
+    function showEnd() {
+        document.getElementById('quiz-ui').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+        const used = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('stats-time').innerText = `完成時間：${Math.floor(used/60)}分${used%60}秒`;
 
-        let html = "<h3>答題清單：</h3>";
-        history.forEach((item, idx) => {
-            html += `<div style="color: ${item.correct ? '#34C759' : '#FF3B30'}; margin-bottom: 5px;">
-                ${idx+1}. ${item.q} → 正確答案: ${item.a} ${item.correct ? '✅' : '❌ (你填 '+item.u+')'}
-            </div>`;
+        let report = "<h3>答題紀錄：</h3>";
+        logs.forEach((l, i) => {
+            report += `<p style="border-bottom:1px solid #eee; padding:5px 0;">${i+1}. ${l.q} <b style="color:${l.res === '✅' ? '#34C759' : '#FF3B30'}">${l.res}</b> ${l.info}</p>`;
         });
-        document.getElementById('history-list').innerHTML = html;
+        document.getElementById('error-log').innerHTML = report;
     }
 
-    // 計時器
     setInterval(() => {
         const s = Math.floor((Date.now() - startTime) / 1000);
-        const m = Math.floor(s / 60);
-        document.getElementById('timer').innerText =
-            `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+        document.getElementById('timer').innerText = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
     }, 1000);
 
-    generate();
+    nextQuestion();
 </script>
 
 </body>
