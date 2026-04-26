@@ -3,211 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小天才數學練習</title>
+    <title>數學大師進階版</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
         :root {
-            --primary-color: #4A90E2;
-            --success-color: #7ED321;
-            --bg-color: #F0F4F8;
+            --primary: #5856D6;
+            --secondary: #FF9500;
+            --success: #34C759;
+            --bg: #F2F2F7;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
+            font-family: -apple-system, system-ui, sans-serif;
+            background-color: var(--bg);
             margin: 0;
             display: flex;
             flex-direction: column;
-            align-items: center;
             height: 100vh;
-            overflow: hidden;
-            touch-action: manipulation;
+            user-select: none;
         }
 
-        #progress-bar {
-            width: 100%;
-            height: 10px;
-            background: #ddd;
+        /* 頂部資訊欄 */
+        .header {
+            padding: 15px;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
-        #progress-inner {
-            height: 100%;
-            background: var(--success-color);
-            width: 0%;
-            transition: width 0.3s;
-        }
+        #timer { font-family: monospace; font-size: 1.2rem; color: var(--primary); }
 
-        .container {
+        /* 進度條 */
+        .progress-container { width: 100%; height: 6px; background: #E5E5EA; }
+        #progress-fill { height: 100%; background: var(--success); width: 0%; transition: 0.3s; }
+
+        .main-content {
             flex: 1;
-            width: 90%;
-            max-width: 400px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
+            align-items: center;
             justify-content: center;
-            text-align: center;
         }
 
-        .question-card {
+        .card {
             background: white;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 350px;
+            border-radius: 25px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            position: relative;
+        }
+
+        #q-text { font-size: 1.5rem; line-height: 1.5; margin-bottom: 20px; min-height: 80px; }
+
+        /* 答案槽位 */
+        .answer-box {
+            font-size: 3rem;
+            color: var(--primary);
+            border-bottom: 4px dashed #CCC;
+            display: inline-block;
+            min-width: 80px;
+            height: 60px;
             margin-bottom: 20px;
         }
 
-        #question-text {
-            font-size: 1.4rem;
-            color: #333;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        }
-
-        #visual-hint {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-
-        #answer-display {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            min-height: 3.5rem;
-            border-bottom: 3px solid var(--primary-color);
-            margin: 10px auto;
-            width: 100px;
-        }
-
-        /* 虛擬數字鍵盤 */
+        /* 數字鍵盤優化 */
         .keypad {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 12px;
             width: 100%;
-            padding-bottom: 30px;
+            max-width: 350px;
+            padding: 20px;
         }
 
         .key {
             background: white;
-            border: 2px solid #ddd;
+            border: none;
             border-radius: 15px;
-            padding: 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #444;
-            active: background-color: #eee;
+            padding: 18px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            box-shadow: 0 4px 0 #DDD;
+            transition: 0.1s;
         }
 
-        .key.delete { color: #D0021B; }
-        .key.submit { background: var(--primary-color); color: white; border: none; }
+        .key:active { transform: translateY(4px); box-shadow: none; background: #F2F2F7; }
 
-        /* iPhone Safari 點擊縮放修正 */
-        button { touch-action: manipulation; }
+        .key.del { color: #FF3B30; }
+        .key.go { background: var(--primary); color: white; box-shadow: 0 4px 0 #3E3B9E; }
+
+        /* 結果頁面 */
+        #result-screen {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
 
-<div id="progress-bar"><div id="progress-inner"></div></div>
-
-<div class="container">
-    <div class="question-card">
-        <div id="visual-hint">🍎</div>
-        <div id="question-text">載入中...</div>
-        <div id="answer-display"></div>
+<div id="game-screen">
+    <div class="header">
+        <div id="q-count">第 1 / 50 題</div>
+        <div id="timer">00:00</div>
     </div>
+    <div class="progress-container"><div id="progress-fill"></div></div>
 
-    <div class="keypad">
-        <button class="key" onclick="appendNumber(1)">1</button>
-        <button class="key" onclick="appendNumber(2)">2</button>
-        <button class="key" onclick="appendNumber(3)">3</button>
-        <button class="key" onclick="appendNumber(4)">4</button>
-        <button class="key" onclick="appendNumber(5)">5</button>
-        <button class="key" onclick="appendNumber(6)">6</button>
-        <button class="key" onclick="appendNumber(7)">7</button>
-        <button class="key" onclick="appendNumber(8)">8</button>
-        <button class="key" onclick="appendNumber(9)">9</button>
-        <button class="key delete" onclick="clearAnswer()">C</button>
-        <button class="key" onclick="appendNumber(0)">0</button>
-        <button class="key submit" onclick="checkAnswer()">確認</button>
+    <div class="main-content">
+        <div class="card">
+            <div id="q-text">準備好了嗎？</div>
+            <div class="answer-box" id="display"></div>
+        </div>
+
+        <div class="keypad">
+            <button class="key" onclick="press(1)">1</button>
+            <button class="key" onclick="press(2)">2</button>
+            <button class="key" onclick="press(3)">3</button>
+            <button class="key" onclick="press(4)">4</button>
+            <button class="key" onclick="press(5)">5</button>
+            <button class="key" onclick="press(6)">6</button>
+            <button class="key" onclick="press(7)">7</button>
+            <button class="key" onclick="press(8)">8</button>
+            <button class="key" onclick="press(9)">9</button>
+            <button class="key del" onclick="press('C')">C</button>
+            <button class="key" onclick="press(0)">0</button>
+            <button class="key go" onclick="check()">OK</button>
+        </div>
     </div>
 </div>
 
+<div id="result-screen">
+    <h1 id="final-title">🎉 完成挑戰！</h1>
+    <p id="final-time"></p>
+    <div id="history-list" style="text-align: left; background: white; border-radius: 15px; padding: 15px; margin-top: 20px;"></div>
+    <button onclick="location.reload()" style="margin-top: 30px; padding: 15px 40px; border-radius: 30px; border: none; background: var(--success); color: white; font-size: 1.2rem;">再玩一次</button>
+</div>
+
 <script>
-    let currentQuestion = 0;
-    const totalQuestions = 50;
-    let correctAnswer = 0;
-    let userTyped = "";
+    let score = 0;
+    let currentIdx = 1;
+    const total = 50;
+    let answer = 0;
+    let input = "";
+    let startTime = Date.now();
+    let history = [];
 
-    const scenarios = [
-        { text: "樹上有 {n1} 隻小鳥，又飛來了 {n2} 隻，現在一共有幾隻？", icon: "🐦", type: "+" },
-        { text: "小明有 {n1} 個蘋果，吃了 {n2} 個，還剩下幾個？", icon: "🍎", type: "-" },
-        { text: "停車場原本有 {n1} 輛車，開走了 {n2} 輛，還剩幾輛？", icon: "🚗", type: "-" },
-        { text: "我有 {n1} 塊餅乾，媽媽又給我 {n2} 塊，我現在有幾塊？", icon: "🍪", type: "+" }
-    ];
+    // 自動生成多樣化題型
+    function generate() {
+        const type = Math.random();
+        let n1, n2, txt;
 
-    function generateQuestion() {
-        if (currentQuestion >= totalQuestions) {
-            document.querySelector('.container').innerHTML = "<h1>🎉 太棒了！你完成了所有練習！</h1>";
-            return;
+        if (type < 0.4) { // 普通加法
+            n1 = Math.floor(Math.random() * 20) + 10;
+            n2 = Math.floor(Math.random() * 20) + 5;
+            answer = n1 + n2;
+            txt = `${n1} + ${n2} = ?`;
+        } else if (type < 0.7) { // 普通減法
+            n1 = Math.floor(Math.random() * 30) + 20;
+            n2 = Math.floor(Math.random() * 15) + 1;
+            answer = n1 - n2;
+            txt = `${n1} - ${n2} = ?`;
+        } else { // 填空題 (進階)
+            answer = Math.floor(Math.random() * 10) + 2;
+            n1 = Math.floor(Math.random() * 10) + 5;
+            let sum = n1 + answer;
+            txt = `${n1} + ( ) = ${sum}`;
         }
 
-        const scene = scenarios[Math.floor(Math.random() * scenarios.length)];
-        let n1 = Math.floor(Math.random() * 10) + 5;
-        let n2 = Math.floor(Math.random() * 9) + 1;
+        document.getElementById('q-text').innerHTML = `<h3>第 ${currentIdx} 題</h3>${txt}`;
+        document.getElementById('q-count').innerText = `第 ${currentIdx} / ${total} 題`;
+        document.getElementById('progress-fill').style.width = `${(currentIdx/total)*100}%`;
+        input = "";
+        updateDisplay();
+    }
 
-        if (scene.type === "-") {
-            if (n1 < n2) [n1, n2] = [n2, n1];
-            correctAnswer = n1 - n2;
+    function press(val) {
+        if (val === 'C') input = "";
+        else if (input.length < 3) input += val;
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        document.getElementById('display').innerText = input;
+    }
+
+    function check() {
+        const userAns = parseInt(input);
+        const qText = document.getElementById('q-text').innerText.split('\n')[1];
+
+        if (userAns === answer) {
+            confetti({ particleCount: 100, spread: 50, origin: { y: 0.8 } });
+            history.push({ q: qText, a: answer, u: userAns, correct: true });
+
+            if (currentIdx < total) {
+                currentIdx++;
+                setTimeout(generate, 800);
+            } else {
+                showResult();
+            }
         } else {
-            correctAnswer = n1 + n2;
-        }
-
-        document.getElementById('question-text').innerText = scene.text.replace("{n1}", n1).replace("{n2}", n2);
-        document.getElementById('visual-hint').innerText = scene.icon;
-        document.getElementById('answer-display').innerText = "";
-        userTyped = "";
-
-        updateProgress();
-    }
-
-    function appendNumber(num) {
-        if (userTyped.length < 3) {
-            userTyped += num;
-            document.getElementById('answer-display').innerText = userTyped;
+            history.push({ q: qText, a: answer, u: userAns, correct: false });
+            alert("哎呀！算錯囉，再想一下！");
+            input = "";
+            updateDisplay();
         }
     }
 
-    function clearAnswer() {
-        userTyped = "";
-        document.getElementById('answer-display').innerText = "";
+    function showResult() {
+        const timeUsed = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        document.getElementById('final-time').innerText = `總共用時：${Math.floor(timeUsed/60)}分${timeUsed%60}秒`;
+
+        let html = "<h3>答題清單：</h3>";
+        history.forEach((item, idx) => {
+            html += `<div style="color: ${item.correct ? '#34C759' : '#FF3B30'}; margin-bottom: 5px;">
+                ${idx+1}. ${item.q} → 正確答案: ${item.a} ${item.correct ? '✅' : '❌ (你填 '+item.u+')'}
+            </div>`;
+        });
+        document.getElementById('history-list').innerHTML = html;
     }
 
-    function checkAnswer() {
-        if (parseInt(userTyped) === correctAnswer) {
-            // 答對了！噴放煙火
-            confetti({
-                particleCount: 150,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+    // 計時器
+    setInterval(() => {
+        const s = Math.floor((Date.now() - startTime) / 1000);
+        const m = Math.floor(s / 60);
+        document.getElementById('timer').innerText =
+            `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    }, 1000);
 
-            currentQuestion++;
-            setTimeout(generateQuestion, 1500);
-        } else {
-            // 答錯震動提示（如果設備支援）
-            if (navigator.vibrate) navigator.vibrate(200);
-            alert("再試一次看看喔！");
-            clearAnswer();
-        }
-    }
-
-    function updateProgress() {
-        const percent = (currentQuestion / totalQuestions) * 100;
-        document.getElementById('progress-inner').style.width = percent + "%";
-    }
-
-    // 初始化第一題
-    generateQuestion();
+    generate();
 </script>
 
 </body>
 </html>
+
